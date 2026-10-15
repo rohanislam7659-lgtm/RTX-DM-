@@ -1,3 +1,4 @@
 requests
 rich
-colorama
+beautifulsoup4
+urllib3
