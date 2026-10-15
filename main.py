@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/init/env python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -27,67 +27,82 @@ def banner():
     """
     styled_art = Text(ascii_art, style="bold cyan")
     console.print(styled_art)
-    console.print(Panel.fit("🔥 RTX DM - Professional Facebook Auto Comment Tool\nDeveloper: RTX DM Team [UI & Pro Mode]", title="[bold yellow]SECURE & STABLE[/bold yellow]", border_style="green"))
+    console.print(Panel.fit("🔥 RTX DM - Professional Facebook Auto Comment Tool\nDeveloper: RTX DM Team [Browser Bypass Mode]", title="[bold yellow]ACTIVE & BYPASS[/bold yellow]", border_style="green"))
 
 def send_comment(post_url, cookie, comment):
+    # রিয়েল মোবাইল ব্রাউজারের নিখুঁত হেডার্স (যাতে ফেসবুক বট মনে না করে)
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'Host': 'mbasic.facebook.com',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Cookie': cookie,
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+        'Origin': 'https://mbasic.facebook.com',
+        'Referer': post_url,
+        'Sec-Ch-Ua': '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+        'Sec-Ch-Ua-Mobile': '?1',
+        'Sec-Ch-Ua-Platform': '"Android"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Connection': 'keep-alive'
     }
     
     try:
         session = requests.Session()
         
-        # লিংকটিকে মোবাইল বেসিক ভার্সনে কনভার্ট করা
+        # লিংকটিকে mbasic ভার্সনে রূপান্তর করা
         if "www.facebook.com" in post_url:
             target_url = post_url.replace("www.facebook.com", "mbasic.facebook.com")
         elif "m.facebook.com" in post_url:
             target_url = post_url.replace("m.facebook.com", "mbasic.facebook.com")
+        elif "mbasic.facebook.com" in post_url:
+            target_url = post_url
         else:
             target_url = f"https://mbasic.facebook.com/{post_url}"
 
-        # পেজ ফেচ করে ফর্ম টোকেন সংগ্রহ করা
+        # প্রথমে পেজ গেট করে কুকি সেশন ও টোকেন জেনারেট করা
         response = session.get(target_url, headers=headers, timeout=15)
         
         if response.status_code != 200:
-            return False, f"HTTP Error {response.status_code}: Target unreachable"
+            return False, f"HTTP Error {response.status_code}: Connection Blocked"
 
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # কমেন্ট ফর্ম খুঁজে বের করা
+        # কমেন্ট ফর্ম বা টার্গেট অ্যাকশন খোঁজা
         form = soup.find('form', method='post')
         if not form:
-            return False, "Comment form not found or Post is private"
+            return False, "Comment form not found. Post might be restricted."
 
         action = form.get('action')
         comment_url = f"https://mbasic.facebook.com{action}" if action and action.startswith('/') else (action or target_url)
 
-        # হিডেন ইনপুট ফিল্ডগুলো (fb_dtsg, jazoest ইত্যাদি) সংগ্রহ করা
+        # ফর্মের ভেতরের সব হিডেন ইনপুট (fb_dtsg, jazoest ইত্যাদি) সংগ্রহ করা
         data = {}
         for input_tag in form.find_all('input'):
             if input_tag.get('name'):
                 data[input_tag.get('name')] = input_tag.get('value', '')
 
-        # কমেন্ট টেক্সট যুক্ত করা
+        # ইউজারের কমেন্ট যুক্ত করা
         data['comment_text'] = comment
         
         headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        headers['Referer'] = target_url
 
-        # কমেন্ট সাবমিট রিকোয়েস্ট পাঠানো
+        # কমেন্ট পোস্ট রিকোয়েস্ট পাঠানো
         post_response = session.post(comment_url, headers=headers, data=data, timeout=15)
         
         if post_response.status_code == 200:
             res_text = post_response.text.lower()
             if 'checkpoint' in post_response.url or 'login' in post_response.url or 'checkpoint' in res_text:
                 return False, "Account Checkpoint / Cookie Expired"
+            
+            # যদি সফলভাবে কমেন্ট সাবমিট হয়
             return True, "Comment Posted Successfully"
         else:
-            return False, f"Submission Failed (HTTP {post_response.status_code})"
+            return False, f"HTTP Error {post_response.status_code}"
             
     except requests.exceptions.Timeout:
         return False, "Request Timeout!"
@@ -124,7 +139,7 @@ def main():
         delay = 15
         console.print("[bold red][!] Invalid input! Defaulting to 15 seconds.[/bold red]")
 
-    console.print(f"\n[bold cyan][*] Starting RTX DM Professional Auto Comment Engine...[/bold cyan]\n")
+    console.print(f"\n[bold cyan][*] Starting Browser Bypass Auto Comment Engine...[/bold cyan]\n")
     
     count = 1
     try:
