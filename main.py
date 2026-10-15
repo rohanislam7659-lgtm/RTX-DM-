@@ -1,131 +1,122 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 import time
 import requests
-from bs4 import BeautifulSoup
-from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
-
-console = Console()
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def banner():
     clear_screen()
-    ascii_art = """
-    ██████╗ ████████╗██╗  ██╗    ██████╗ ███╗   ███╗
-    ██╔══██╗╚══██╔══╝╚██╗██╔╝    ██╔══██╗████╗ ████║
-    ██████╔╝   ██║    ╚███╔╝     ██║  ██║██╔████╔██║
-    ██╔══██╗   ██║    ██╔██╗     ██║  ██║██║╚██╔╝██║
-    ██║  ██║   ██║   ██╔╝ ██╗    ██████╔╝██║ ╚═╝ ██║
-    ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝    ╚═════╝ ╚═╝     ╚═╝
-    """
-    styled_art = Text(ascii_art, style="bold cyan")
-    console.print(styled_art)
-    console.print(Panel.fit("🔥 RTX DM - Advanced Facebook Auto Comment Tool\nDeveloper: RTX DM Team [Direct API Mode]", title="[bold yellow]STABLE MODE[/bold yellow]", border_style="green"))
+    print("=" * 60)
+    print("         RTX DM - Advanced Facebook Auto Comment Tool")
+    print("         Developer: RTX DM Team [Professional Edition]")
+    print("=" * 60)
 
-def send_comment_with_cookie(post_url, cookie, comment):
+def send_comment(post_url, cookie, comment):
+    # প্রফেশনাল ব্রাউজার হেডার্স যা ফেসবুকের সিকিউরিটি বাইপাস করতে সাহায্য করবে
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 12; SM-A525F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Cookie': cookie,
         'Connection': 'keep-alive',
-        'Cache-Control': 'max-age=0',
         'Upgrade-Insecure-Requests': '1'
     }
     
     try:
         session = requests.Session()
         
-        # Ensure we target mbasic.facebook.com for stable form parsing
-        if "www.facebook.com" in post_url:
+        # লিংকটিকে ফেসবুকের মোবাইল বেসিক ভার্সনে কনভার্ট করা (সবচেয়ে স্টেবল মেথড)
+        if "mbasic.facebook.com" in post_url:
+            target_url = post_url
+        elif "www.facebook.com" in post_url:
             target_url = post_url.replace("www.facebook.com", "mbasic.facebook.com")
         elif "m.facebook.com" in post_url:
             target_url = post_url.replace("m.facebook.com", "mbasic.facebook.com")
         else:
             target_url = f"https://mbasic.facebook.com/{post_url}"
 
-        # Step 1: Get the post page via mbasic to bypass complex JS rendering
-        response = session.get(target_url, headers=headers)
+        # পেজটি ফেচ করে ফর্ম এবং টোকেন বা ইউআরএল যাচাই করা
+        response = session.get(target_url, headers=headers, timeout=15)
         
         if response.status_code != 200:
-            return False, f"HTTP Error {response.status_code}: Server rejected request."
+            return False, f"HTTP Error {response.status_code}: Target unreachable"
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # কমেন্ট সাবমিট করার জন্য পে-লোড ডেটা
+        payload = {
+            'comment_text': comment
+        }
         
-        # Find the comment form
-        form = soup.find('form', method='post')
-        if not form:
-            return False, "Comment form not found (Check if post is public or cookie is valid)"
-
-        action = form.get('action')
-        comment_url = f"https://mbasic.facebook.com{action}" if action and action.startswith('/') else (action or target_url)
-
-        # Extract hidden inputs (fb_dtsg, jazoest, etc.)
-        data = {}
-        for input_tag in form.find_all('input'):
-            if input_tag.get('name'):
-                data[input_tag.get('name')] = input_tag.get('value', '')
-
-        # Add comment text field
-        data['comment_text'] = comment
-        
-        headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        headers['Referer'] = target_url
-
-        # Step 2: Submit comment
-        post_response = session.post(comment_url, headers=headers, data=data, allow_redirects=True)
+        # পোস্ট রিকোয়েস্ট পাঠানো
+        post_response = session.post(target_url, headers=headers, data=payload, timeout=15)
         
         if post_response.status_code == 200:
-            if 'error' in post_response.text.lower() or 'checkpoint' in post_response.url or 'login' in post_response.url:
-                return False, "Account Checkpoint, Login required or Cookie Expired"
+            res_text = post_response.text.lower()
+            if 'checkpoint' in post_response.url or 'login' in post_response.url or 'checkpoint' in res_text:
+                return False, "Account Checkpoint / Cookie Expired"
             return True, "Comment Posted Successfully"
         else:
             return False, f"Submission Failed (HTTP {post_response.status_code})"
             
+    except requests.exceptions.Timeout:
+        return False, "Request Timeout! Check your internet connection."
     except Exception as e:
         return False, str(e)
 
 def main():
     banner()
     
-    console.print("\n[bold yellow]>[/bold yellow] Enter Facebook Cookie (c_user=...; xs=...):")
-    cookie = console.input("[bold green]Cookie ➔ [/bold green]").strip()
+    print("\n[+] Enter Facebook Cookie (c_user=...; xs=...):")
+    cookie = input("Cookie ➔ ").strip()
+    if not cookie:
+        print("[-] Error: Cookie cannot be empty!")
+        sys.exit(1)
     
-    console.print("\n[bold yellow]>[/bold yellow] Enter Full Facebook Post Link:")
-    post_link = console.input("[bold green]Post Link ➔ [/bold green]").strip()
+    print("\n[+] Enter Full Facebook Post Link:")
+    post_link = input("Post Link ➔ ").strip()
+    if not post_link:
+        print("[-] Error: Post link cannot be empty!")
+        sys.exit(1)
     
-    console.print("\n[bold yellow]>[/bold yellow] Enter Comments (comma separated, e.g., Nice,Awesome,Cool):")
-    comments_input = console.input("[bold green]Comments ➔ [/bold green]").strip()
+    print("\n[+] Enter Comments (comma separated, e.g., Nice,Awesome,Cool):")
+    comments_input = input("Comments ➔ ").strip()
+    if not comments_input:
+        print("[-] Error: Comments list cannot be empty!")
+        sys.exit(1)
+    
     comments_list = [c.strip() for c in comments_input.split(',')]
     
-    console.print("\n[bold yellow]>[/bold yellow] Enter Delay time between comments (in seconds, recommended >= 15):")
+    print("\n[+] Enter Delay time between comments (in seconds, recommended >= 15):")
     try:
-        delay = int(console.input("[bold green]Delay (sec) ➔ [/bold green]").strip())
+        delay = int(input("Delay (sec) ➔ ").strip())
     except ValueError:
         delay = 15
-        console.print("[bold red][-] Invalid input! Defaulting to 15 seconds.[/bold red]")
+        print("[!] Invalid input! Defaulting to 15 seconds.")
 
-    console.print(f"\n[bold cyan][*] Starting Stable Mode Auto Comment...[/bold cyan]\n")
+    print(f"\n[*] Starting RTX DM Auto Comment Engine...\n")
     
     count = 1
     try:
         while True:
             for comment in comments_list:
-                success, result = send_comment_with_cookie(post_link, cookie, comment)
+                if not comment:
+                    continue
+                success, result = send_comment(post_link, cookie, comment)
                 if success:
-                    console.print(f"[bold green][✔] Comment [{count}] Sent:[/bold green] {comment}")
+                    print(f"[✔] Comment [{count}] Sent: {comment}")
                 else:
-                    console.print(f"[bold red][✖] Failed [{comment}]:[/bold red] {result}")
+                    print(f"[✖] Failed [{comment}]: {result}")
                 
                 count += 1
+                print(f"[*] Waiting {delay} seconds for next comment...")
                 time.sleep(delay)
     except KeyboardInterrupt:
-        console.print("\n[bold yellow][!] Process stopped by user. Exiting...[/bold yellow]")
+        print("\n[!] Process aborted by user. Exiting safely...")
         sys.exit(0)
 
-if __name__ == 'main__':
+if __name__ == '__main__':
     main()
